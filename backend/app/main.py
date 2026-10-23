@@ -1,5 +1,6 @@
 import httpx
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
@@ -9,6 +10,14 @@ from .llm import generate_sql
 from .safety import UnsafeSQLError, add_row_limit, validate_sql
 
 app = FastAPI(title="Text-to-SQL API")
+
+# Allow only our local website (Next.js dev server) to call this API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 
 class QuestionIn(BaseModel):
