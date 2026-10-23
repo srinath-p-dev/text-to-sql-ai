@@ -1,3 +1,4 @@
+from typing import Any
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError
 
 from .db import engine, run_readonly_query
-from .llm import generate_sql
+from .llm import explain_result, generate_sql
 from .safety import UnsafeSQLError, add_row_limit, validate_sql
 
 app = FastAPI(title="Text-to-SQL API")
@@ -83,3 +84,23 @@ def ask(body: QuestionIn):
         "rows": rows,
         "row_count": len(rows),
     }
+
+
+class ExplainIn(BaseModel):
+    question: str = Field(min_length=3, max_length=500)
+    columns: list[str] = Field(max_length=50)
+    rows: list[list[Any]] = Field(max_length=100)
+
+
+@app.post("/explain")
+def explain(body: ExplainIn):
+    # Turns a result table into a short plain-English answer.
+    # Does not touch the database.
+    try:
+        answer = explain_result(body.question, body.columns, body.rows)
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not reach the AI model (Ollama). Is it running?",
+        ) from e
+    return {"answer": answer}

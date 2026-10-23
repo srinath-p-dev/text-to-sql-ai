@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
 
@@ -51,14 +51,42 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AskResult | null>(null);
   const [error, setError] = useState<ApiError | null>(null);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const requestId = useRef(0);
+
+  async function explain(id: number, q: string, data: AskResult) {
+    setSummarizing(true);
+    try {
+      const res = await fetch(`${API_URL}/explain`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q,
+          columns: data.columns,
+          rows: data.rows,
+        }),
+      });
+      if (!res.ok) return;
+      const body = await res.json();
+      if (id === requestId.current) setSummary(body.answer);
+    } catch {
+      // The summary is optional; the table is still shown.
+    } finally {
+      if (id === requestId.current) setSummarizing(false);
+    }
+  }
 
   async function ask(q: string) {
     const trimmed = q.trim();
     if (trimmed.length < 3 || loading) return;
 
+    const id = ++requestId.current;
     setLoading(true);
     setResult(null);
     setError(null);
+    setSummary(null);
+    setSummarizing(false);
 
     try {
       const res = await fetch(`${API_URL}/ask`, {
@@ -71,6 +99,7 @@ export default function Home() {
         setError(readError(data.detail));
       } else {
         setResult(data as AskResult);
+        explain(id, trimmed, data as AskResult);
       }
     } catch {
       setError({
@@ -152,6 +181,22 @@ export default function Home() {
 
       {result && (
         <section className="mt-6">
+          {(summarizing || summary) && (
+            <div className="mb-6 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
+              <h2 className="text-sm font-semibold uppercase opacity-60">
+                AI summary
+              </h2>
+              <p className="mt-1">
+                {summarizing ? "Writing a short summary…" : summary}
+              </p>
+              {!summarizing && (
+                <p className="mt-2 text-xs opacity-60">
+                  Written by AI. The table below is the exact answer from the
+                  database.
+                </p>
+              )}
+            </div>
+          )}
           <h2 className="text-sm font-semibold uppercase opacity-60">
             SQL that ran
           </h2>

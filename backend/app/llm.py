@@ -1,3 +1,4 @@
+import json
 import re
 
 import httpx
@@ -57,3 +58,42 @@ def generate_sql(question: str) -> str:
     )
     response.raise_for_status()
     return clean_sql(response.json()["message"]["content"])
+
+
+EXPLAIN_PROMPT = (
+    "You explain database query results to a non-technical person.\n"
+    "Answer the user's question in one or two short sentences, "
+    "using ONLY the data provided.\n"
+    "- Never invent or estimate numbers that are not in the data.\n"
+    "- If the data has no rows, say that nothing matched.\n"
+    "- Do not mention SQL, queries, tables, or column names.\n"
+    "- Do not add currency symbols or units that are not in the data.\n"
+)
+
+MAX_EXPLAIN_ROWS = 20
+
+
+def explain_result(question: str, columns: list[str], rows: list[list]) -> str:
+    data = {"columns": columns, "rows": rows[:MAX_EXPLAIN_ROWS]}
+    note = ""
+    if len(rows) > MAX_EXPLAIN_ROWS:
+        note = f"\n(Only the first {MAX_EXPLAIN_ROWS} of {len(rows)} rows are shown.)"
+    user_message = (
+        f"Question: {question}\n"
+        f"Data: {json.dumps(data, default=str)}{note}"
+    )
+    response = httpx.post(
+        f"{settings.ollama_url}/api/chat",
+        json={
+            "model": settings.ollama_model,
+            "messages": [
+                {"role": "system", "content": EXPLAIN_PROMPT},
+                {"role": "user", "content": user_message},
+            ],
+            "stream": False,
+            "options": {"temperature": 0},
+        },
+        timeout=120,
+    )
+    response.raise_for_status()
+    return response.json()["message"]["content"].strip()
