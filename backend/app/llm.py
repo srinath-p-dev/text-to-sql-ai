@@ -27,6 +27,7 @@ SYSTEM_PROMPT = (
     "- Revenue = SUM(order_items.quantity * order_items.unit_price), "
     "excluding orders where orders.status = 'cancelled'.\n"
     "- For revenue, use order_items.unit_price, not products.price.\n"
+    "- Exclude cancelled orders ONLY for revenue or money questions. Questions about whether a customer placed an order, or how many orders exist, must include ALL orders, including cancelled ones.\n"
 )
 
 # Matches ```sql ... ``` or ``` ... ``` around the answer
