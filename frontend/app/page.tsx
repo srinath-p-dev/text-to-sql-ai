@@ -41,8 +41,27 @@ function readError(detail: unknown): ApiError {
   return { message: "Something went wrong." };
 }
 
-function formatCell(value: unknown): string {
+const MONEY_WORDS = ["revenue", "price", "amount", "sales", "spent", "cost"];
+const PLAIN_WORDS = ["year", "month"];
+
+function formatCell(value: unknown, column: string): string {
   if (value === null || value === undefined) return "—";
+  if (typeof value === "number") {
+    const col = column.toLowerCase();
+    if (col === "id" || col.endsWith("_id")) {
+      return String(value);
+    }
+    if (MONEY_WORDS.some((w) => col.includes(w))) {
+      return value.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
+    if (PLAIN_WORDS.some((w) => col.includes(w))) {
+      return String(value);
+    }
+    return value.toLocaleString();
+  }
   return String(value);
 }
 
@@ -231,7 +250,7 @@ export default function Home() {
                     >
                       {row.map((cell, j) => (
                         <td key={j} className="px-3 py-2">
-                          {formatCell(cell)}
+                          {formatCell(cell, result.columns[j])}
                         </td>
                       ))}
                     </tr>
