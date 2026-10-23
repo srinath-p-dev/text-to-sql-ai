@@ -19,5 +19,8 @@ class Settings(BaseSettings):
     db_user: str
     db_password: SecretStr
 
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5-coder:7b"
+
 
 settings = Settings()
